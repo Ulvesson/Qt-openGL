@@ -33,7 +33,7 @@ uniform highp mat4 matrix;
 
 void main(void)
 {
-    vec4 p = vec4(vertex.x + pos.x, vertex.y + pos.y, 0, 1);
+    vec4 p = vec4(vertex.xy + pos, 0, 1);
     gl_Position = matrix * p;
 }
 )";
