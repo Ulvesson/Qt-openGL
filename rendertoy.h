@@ -21,14 +21,17 @@ public:
 // QOpenGLWidget interface
 protected:
     void initializeGL() override;
-    void resizeGL(int w, int h) override;
+    void resizeGL(int width, int height) override;
     void paintGL() override;
 
     void wheelEvent(QWheelEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
 
 private:
     void initTriangle();
     void drawTriangle();
+    QVector2D dcToClipspace(const QPoint &pos);
+    void updateProjection(int width, int height);
 
 private:
     bool m_initialized = false;
@@ -37,10 +40,10 @@ private:
     QOpenGLBuffer m_vboPos;
     QOpenGLShaderProgram* m_program;
     QMatrix4x4 m_proj;
+    QMatrix4x4 m_view;
     float m_scale = 10.0f;
     int m_matrixLocation;
     int m_colorLocation;
-
 };
 
 #endif // RENDERTOY_H

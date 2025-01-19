@@ -4,25 +4,29 @@
 #include <QOpenGLShaderProgram>
 #include <QOpenGLExtraFunctions>
 #include <QWheelEvent>
+#include <QScreen>
 
 namespace {
 
-static GLfloat const triangleVertices[] = {
-    0.0f,  -1.0f,  0.0f,
-    -1.f, 1.0f, 0.0f,
-    1.0f,  1.0f, 0.0f
+constexpr float halfW = 1.0f / 2.0f;
+
+static GLfloat const vertices[] = {
+    0.0f, 0.0f, 0, 1,
+    1.0f, 0.0f, 0, 1,
+    1.0f, 1.0f, 0, 1
 };
 
 static GLfloat const instanceData[] = {
     0.0f, 0.0f,
+    1.0f, 0.0f,
     2.0f, 0.0f,
-    -2.0, 0.0f,
+    3.0f, 0.0f,
+    4.0f, 0.0f,
     0.0f, 2.0f,
+    1.0f, 2.0f,
     2.0f, 2.0f,
-    -2.0, 2.0f,
-    0.0f, -2.0f,
-    2.0f, -2.0f,
-    -2.0, -2.0f,
+    3.0f, 2.0f,
+    4.0f, 2.0f,
 };
 
 std::string vertexSource = R"(
@@ -63,6 +67,11 @@ void MessageCallback( GLenum source,
 RenderToy::RenderToy(QWidget* parent)
     : QOpenGLWidget(parent)
 {
+    setMouseTracking(true);
+    auto sc = screen();
+    qDebug() << "PixelRatio:" << sc->devicePixelRatio();
+    qDebug() << "DPY x:" << sc->logicalDotsPerInchX();
+    qDebug() << "DPY x:" << sc->logicalDotsPerInchY();
 }
 
 RenderToy::~RenderToy()
@@ -82,24 +91,12 @@ void RenderToy::initializeGL()
     glEnable              ( GL_DEBUG_OUTPUT );
     glDebugMessageCallback( MessageCallback, 0 );
     glClearColor(.0f, .0f, .0f, 1.f);
+    glDisable(GL_CULL_FACE);
 }
 
-void RenderToy::resizeGL(int w, int h)
+void RenderToy::resizeGL(int width, int height)
 {
-    float target_width = 10.f;
-    float target_height = 10.f;
-    float A = target_width / target_height; // target aspect ratio
-    float V = static_cast<float>(w) / static_cast<float>(h);
-
-    m_proj.setToIdentity();
-
-    if (V >= A) {
-        // wide viewport, use full height
-        m_proj.ortho(-V/A * target_width/2.0f, V/A * target_width/2.0f, -target_height/2.0f, target_height/2.0f, 1, -1);
-    } else {
-        // tall viewport, use full width
-        m_proj.ortho(-target_width/2.0f, target_width/2.0f, -A/V*target_height/2.0f, A/V*target_height/2.0f, 1, -1);
-    }
+    updateProjection(width, height);
 }
 
 void RenderToy::paintGL()
@@ -129,16 +126,25 @@ void RenderToy::wheelEvent(QWheelEvent *event)
     update();
 }
 
+void RenderToy::mouseMoveEvent(QMouseEvent *event)
+{
+    auto clip = dcToClipspace(event->pos());
+    QMatrix4x4 vp = m_proj * m_view;
+    auto m = vp.inverted();
+    auto p = m * QVector4D(clip, 0, 1);
+    qDebug() << p.x() << ", " << p.y();
+}
+
 void RenderToy::initTriangle()
 {
     m_vao.create();
     QOpenGLVertexArrayObject::Binder vaoBinder(&m_vao);
     m_vbo.create();
     m_vbo.bind();
-    int size = 9 * sizeof(GLfloat);
-    m_vbo.allocate(triangleVertices, size);
+    int size = sizeof(vertices) * sizeof(GLfloat);
+    m_vbo.allocate(vertices, size);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, nullptr);
     m_vbo.release();
 
     m_vboPos.create();
@@ -166,18 +172,38 @@ void RenderToy::initTriangle()
 
 void RenderToy::drawTriangle()
 {
-    QMatrix4x4 view;
-    view.setToIdentity();
-    view.translate(0, 0);
-    QMatrix4x4 vp =m_proj * view;
-
+    QMatrix4x4 vp = m_proj * m_view;
     QOpenGLVertexArrayObject::Binder vaoBinder(&m_vao);
     m_program->bind();
     m_program->setUniformValue(m_matrixLocation, vp);
     m_program->setUniformValue(m_colorLocation, QColor(0, 255, 0, 255));
 
-    glDrawArraysInstanced(GL_TRIANGLES, 0, 3, sizeof(instanceData));
+    glDrawArraysInstanced(GL_TRIANGLES, 0, 4, sizeof(vertices) / 4);
     if (glGetError() != GL_NO_ERROR) {
         throw std::runtime_error("GL error");
+    }
+}
+
+QVector2D RenderToy::dcToClipspace(const QPoint &pos)
+{
+    float x = pos.x() * (1.0f / width()) * 2 - 1.0f;
+    float y = (height() - pos.y()) * (1.0f / height()) * 2 - 1.0f;
+    return QVector2D(x, y);
+}
+
+void RenderToy::updateProjection(int width, int height)
+{
+    constexpr float size = 10.0;
+    float aspect = static_cast<float>(width) / static_cast<float>(height);
+
+    m_proj.setToIdentity();
+    m_view.setToIdentity();
+    m_view.translate(1.0f, 1.0f);
+
+    if (aspect >= 1.0) {
+        m_proj.ortho(0, size, 0, size / aspect, 0.0f, 1.0f);
+    }
+    else {
+        m_proj.ortho(0, size * aspect, 0, size, 1, -1);
     }
 }
