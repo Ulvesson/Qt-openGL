@@ -33,12 +33,12 @@ std::string vertexSource = R"(
 #version 430
 layout(location=0) in vec4 vertex;
 layout(location=1) in vec2 pos;
-uniform highp mat4 matrix;
+uniform highp mat4 mVP;
 
 void main(void)
 {
     vec4 p = vec4(vertex.xy + pos, 0, 1);
-    gl_Position = matrix * p;
+    gl_Position = mVP * p;
 }
 )";
 
@@ -66,6 +66,7 @@ void MessageCallback( GLenum source,
 
 RenderToy::RenderToy(QWidget* parent)
     : QOpenGLWidget(parent)
+    , m_grid(new GridRenderer(this))
 {
     setMouseTracking(true);
     auto sc = screen();
@@ -107,6 +108,8 @@ void RenderToy::paintGL()
         initTriangle();
         m_initialized = true;
     }
+
+    m_grid->paintGL(m_proj * m_view);
 
     drawTriangle();
 }
@@ -165,7 +168,7 @@ void RenderToy::initTriangle()
         throw std::runtime_error(m_program->log().toStdString());
     }
 
-    m_matrixLocation = m_program->uniformLocation("matrix");
+    m_matrixLocation = m_program->uniformLocation("mVP");
     m_colorLocation = m_program->uniformLocation("color");
     m_program->release();
 }
@@ -198,7 +201,6 @@ void RenderToy::updateProjection(int width, int height)
 
     m_proj.setToIdentity();
     m_view.setToIdentity();
-    m_view.translate(1.0f, 1.0f);
 
     if (aspect >= 1.0) {
         m_proj.ortho(0, size, 0, size / aspect, 0.0f, 1.0f);

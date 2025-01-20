@@ -7,6 +7,8 @@
 #include <QOpenGLVertexArrayObject>
 #include <QMatrix4x4>
 
+#include "gridrenderer.h"
+
 class QOpenGLShader;
 class QOpenGLShaderProgram;
 
@@ -44,6 +46,8 @@ private:
     float m_scale = 10.0f;
     int m_matrixLocation;
     int m_colorLocation;
+
+    GridRenderer *m_grid;
 };
 
 #endif // RENDERTOY_H

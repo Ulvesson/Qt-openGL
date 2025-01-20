@@ -23,6 +23,8 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
         rendertoy.h rendertoy.cpp
+        gridrenderer.h gridrenderer.cpp
+        renderer.h renderer.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET RenderToy APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
